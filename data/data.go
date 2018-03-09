@@ -40,7 +40,7 @@ func init() {
 }
 
 
-func AddUser(name string, email string, phone string, password string) {
+func AddUser(name string, email string, phone string, password string)(err error) {
 	passwordArray := []byte(password)
 	hash, err := bcrypt.GenerateFromPassword(passwordArray, 10)
 	if err !=nil{
@@ -48,8 +48,11 @@ func AddUser(name string, email string, phone string, password string) {
 	}
 	pw := string(hash)
 
-	DB.Create(&User{Name:name, Email:email, PhoneNumber:phone, Password:pw})
+	if err := DB.Create(&User{Name:name, Email:email, PhoneNumber:phone, Password:pw}).Error; err !=nil {
+		return err
+	}
 
+	return
 }
 
 
@@ -71,34 +74,37 @@ func SendPost(email string, content string)(err error){
 	user := User{}
 	DB.Where("email = ?", email).Find(&user)
 	DB.Model(&user).Association("Post").Append(Post{Content:content})
-	fmt.Printf("post content %s", user.Post)
+	//fmt.Printf("post content %s", user.Post)
 	if err := DB.Model(&user).Association("Post").Append(Post{Content:content}).Error; err!=nil{
 		return err
 	}
 	return
 }
 
-//有问题
-func GetPost(email string)(err error){
+func GetPost(email string)(post []Post, err error){
 	user := User{}
-	post := Post{}
 	DB.Where("email = ?", email).Find(&user)
 	DB.Model(&user).Association("Post").Find(&post)
+	//fmt.Printf("GetPost %s\n", post)
 	if err := DB.Where("email = ?", email).Find(&user).Error; err!=nil{
-		return err
+		return post, err
 	}
-	return
+	return post, err
 
 }
 
-func DeletePost(email string, content string)(err error){
+func DeletePost(email string, id uint)(err error){
 	user := User{}
-	fmt.Println(email, content)
+	//fmt.Println(email, id)
+	if err != nil {
+		fmt.Println("Error")
+	}
 	DB.Where("email = ?", email).Find(&user)
-	DB.Where("user_id = ? and content = ?", user.ID, content).Delete(Post{})
-	if err := DB.Where("user_id = ? and content = ?", user.ID, content).Delete(Post{}).Error; err!=nil{
+	DB.Where("user_id = ? and id = ?", user.ID, id).Delete(Post{})
+	if err := DB.Where("user_id = ? and id = ?", user.ID, id).Delete(Post{}).Error; err!=nil{
 		return err
 	}
+	//fmt.Printf("%s 's %s being deleted!", user.ID, id)
 	return
 
 }

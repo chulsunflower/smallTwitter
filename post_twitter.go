@@ -6,6 +6,10 @@ import (
 	"smallTwitter/data"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"github.com/SermoDigital/jose/jws"
+	"github.com/SermoDigital/jose/crypto"
+	"log"
 )
 
 type deletePostTemp struct{
@@ -52,18 +56,23 @@ func handleGet(w http.ResponseWriter, r *http.Request)(err error){
 
 //POST http://localhost:8080/post
 func handlePost(w http.ResponseWriter, r *http.Request)(err error){
-	len := r.ContentLength
-	body := make([]byte, len)
-	r.Body.Read(body)
-	jsonString := make(map[string]string)
-	if err := json.Unmarshal(body, &jsonString); err==nil{
-		if err := data.SendPost(jsonString["Email"], jsonString["Content"]); err !=nil {
-			fmt.Println(err)
+	AccessToken := r.Header.Get("Authorization")
+	fmt.Println("HandlePost",AccessToken )
+	Valid := ValidateToken(AccessToken)
+	if Valid == true{
+		len := r.ContentLength
+		body := make([]byte, len)
+		r.Body.Read(body)
+		jsonString := make(map[string]string)
+		if err := json.Unmarshal(body, &jsonString); err==nil{
+			if err := data.SendPost(jsonString["Email"], jsonString["Content"]); err !=nil {
+				fmt.Println(err)
+			}
+
 		}
-
+		return err
 	}
-	return err
-
+	return
 }
 
 //DELETE http://localhost:8080/post
@@ -83,5 +92,23 @@ func handleDelete(w http.ResponseWriter, r *http.Request)(err error){
 	}
 	return err
 
+}
+
+func ValidateToken(AccessToken string) bool {
+	bytes_validate, _ := ioutil.ReadFile("./sample_key.pub")
+	rsaPublic, _ := crypto.ParseRSAPublicKeyFromPEM(bytes_validate)
+	jwt, err := jws.ParseJWT([]byte(AccessToken))
+	if err != nil {
+		log.Fatal("JWS PARSE ERROR",err)
+	}
+
+	// Validate token
+	if err = jwt.Validate(rsaPublic, crypto.SigningMethodRS256); err != nil {
+		log.Fatal("Validate Error", err)
+	}else{
+		fmt.Println("Valid Token!")
+		return true
+	}
+	return false
 }
 

@@ -73,7 +73,7 @@ func CheckUser(email string, password string) bool{
 func SendPost(email string, content string)(err error){
 	user := User{}
 	DB.Where("email = ?", email).Find(&user)
-	DB.Model(&user).Association("Post").Append(Post{Content:content})
+	//DB.Model(&user).Association("Post").Append(Post{Content:content})
 	//fmt.Printf("post content %s", user.Post)
 	if err := DB.Model(&user).Association("Post").Append(Post{Content:content}).Error; err!=nil{
 		return err
@@ -87,7 +87,10 @@ func GetPost(email string)(post []Post, err error){
 	DB.Model(&user).Association("Post").Find(&post)
 	//fmt.Printf("GetPost %s\n", post)
 	if err := DB.Where("email = ?", email).Find(&user).Error; err!=nil{
-		return post, err
+		if err := DB.Model(&user).Association("Post").Find(&post).Error; err !=nil{
+			return post, err
+		}
+
 	}
 	return post, err
 
@@ -100,7 +103,6 @@ func DeletePost(email string, id uint)(err error){
 		fmt.Println("Error")
 	}
 	DB.Where("email = ?", email).Find(&user)
-	DB.Where("user_id = ? and id = ?", user.ID, id).Delete(Post{})
 	if err := DB.Where("user_id = ? and id = ?", user.ID, id).Delete(Post{}).Error; err!=nil{
 		return err
 	}

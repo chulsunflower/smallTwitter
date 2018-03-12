@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"encoding/json"
 	"smallTwitter/data"
+	"io/ioutil"
+	"github.com/SermoDigital/jose/jws"
+	"github.com/SermoDigital/jose/crypto"
+	"time"
 )
 
 //POST http://localhost:8080/signup
@@ -46,14 +50,18 @@ func login(writer http.ResponseWriter, request *http.Request){
 	json.Unmarshal(body, &user)
 	loginSuccess := data.CheckUser(user.Email, user.Password)
 	if loginSuccess{
-		successMessage := "Login successful!"
-		jsData, err := json.Marshal(successMessage)
+		responseMap := make(map[string]string)
+		responseMap["SuccessMessage"] =  "Login successful!"
+		AccessToken := generateToken()
+		responseMap["AccessToken"] = AccessToken
+		jsData, err := json.Marshal(responseMap)
 		if err != nil{
 			fmt.Println("Json Marshal Error!")
 		}
 		writer.Header().Set("Content-Type", "application/json")
 		writer.Write(jsData)
 		writer.WriteHeader(200)
+		fmt.Println(AccessToken)
 	}else{
 		errMessage := "Invalid user, try again!"
 		jsData, err := json.Marshal(errMessage)
@@ -68,4 +76,16 @@ func login(writer http.ResponseWriter, request *http.Request){
 
 }
 
+func generateToken()string {
+	bytes_generate, _ := ioutil.ReadFile("./sample_key.priv")
 
+	claims := jws.Claims{}
+	claims.SetExpiration(time.Now().Add(time.Duration(600) * time.Second))
+
+	rsaPrivate, _ := crypto.ParseRSAPrivateKeyFromPEM(bytes_generate)
+	jwt := jws.NewJWT(claims, crypto.SigningMethodRS256)
+
+	b, _ := jwt.Serialize(rsaPrivate)
+	return string(b)
+
+}
